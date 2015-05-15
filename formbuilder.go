@@ -16,6 +16,11 @@ type StringField struct {
 	form        *Form
 }
 
+type HiddenField struct {
+	Var  string
+	form *Form
+}
+
 type BoolField struct {
 	Name string
 	Var  string
@@ -83,6 +88,10 @@ func (f *Form) NewBool(Name, Var string) {
 
 func (f *Form) NewString(Name, Var, Placeholder, Specialty string) {
 	f.fields = append(f.fields, &StringField{Name: Name, Var: Var, Placeholder: Placeholder, Specialty: Specialty, form: f})
+}
+
+func (f *Form) NewHidden(Var string) {
+	f.fields = append(f.fields, &HiddenField{Var: Var, form: f})
 }
 
 func (f *Form) NewPassword(Name, Var, Placeholder string) {
@@ -186,6 +195,39 @@ func (s *StringField) Render(Values interface{}) template.HTML {
 		s,
 	}
 	s.form.fb.templates.ExecuteTemplate(buf, "string.tpl", data)
+	return template.HTML(buf.String())
+}
+
+func (s *HiddenField) Parse(Values func(string) string, Dest interface{}) {
+	ValueDest := reflect.ValueOf(Dest)
+	if !ValueDest.IsValid() {
+		return
+	}
+	ValueDest = ValueDest.Elem()
+	VarDest := ValueDest.FieldByName(s.Var)
+	if VarDest.IsValid() {
+		VarDest.SetString(Values(s.Var))
+	}
+}
+
+func (s *HiddenField) Render(Values interface{}) template.HTML {
+	val := ""
+	ValuesValue := reflect.ValueOf(Values)
+	if ValuesValue.IsValid() {
+		VarValue := ValuesValue.FieldByName(s.Var)
+		if VarValue.IsValid() {
+			val = VarValue.String()
+		}
+	}
+	buf := &bytes.Buffer{}
+	data := struct {
+		Value string
+		Field *HiddenField
+	}{
+		val,
+		s,
+	}
+	s.form.fb.templates.ExecuteTemplate(buf, "hidden.tpl", data)
 	return template.HTML(buf.String())
 }
 
